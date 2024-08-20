@@ -13,24 +13,29 @@ import org.apache.http.util.EntityUtils;
 import java.io.*;
 
 public class Main {
-    private static final String PROMETHEUS_URl = "";
+
+    private static final String PROMETHEUS_URl = "http://localhost:9090/api/v1";
 
     public static void main(String[] args) {
-        String query = "tps";
+
         String start = "";
         String end = "";
         String step = "10";
 
-        String url = String.format("%s?query=%s&start=%s&end=%s?step%s", PROMETHEUS_URl, query, start, end, step);
-        try (CloseableHttpClient client = HttpClients.createDefault()) {
-            HttpGet request = new HttpGet(url);
-            HttpResponse response = client.execute(request);
-            String jsonResponse = EntityUtils.toString(response.getEntity());
 
-            Gson gson = new Gson();
-            PrometheusResponse prometheusResponse = gson.fromJson(jsonResponse, PrometheusResponse.class);
-            try (FileWriter fw = new FileWriter("src/main/resources/metrics.csv")) {
-                fw.append("Метрика,Значение\n");
+        try (CloseableHttpClient client = HttpClients.createDefault()) {
+            FileWriter fw = new FileWriter("src/main/resources/metrics.csv");
+            fw.append("Метрика,Значение\n");
+            for (MetricType metricType : MetricType.values()) {
+                String url = String.format("%s?query=%s&start=%s&end=%s?step%s", PROMETHEUS_URl, metricType.getQuery(), start, end, step);
+
+                HttpGet request = new HttpGet(url);
+                HttpResponse response = client.execute(request);
+                String jsonResponse = EntityUtils.toString(response.getEntity());
+
+                Gson gson = new Gson();
+                PrometheusResponse prometheusResponse = gson.fromJson(jsonResponse, PrometheusResponse.class);
+
 
                 if ("success".equals(prometheusResponse.getStatus())) {
 
@@ -43,12 +48,11 @@ public class Main {
                 } else {
                     System.out.println("Ошибка получения данных: " + prometheusResponse.getStatus());
                 }
+            }
             } catch (IOException e) {
                 System.out.println("Ошибка записи в файл: " + e.getMessage());
             }
-        } catch (IOException e) {
-            e.printStackTrace();
+
         }
 
     }
-}
